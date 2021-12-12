@@ -9,22 +9,21 @@
   <body>
     <main>
       <h1>Megalovania but...</h1>
-      <select id=qseqSelect>
-        <option></option>
-        <option value="[0,1,2,3,12,13,14,15,8,9,10,11,4,5,6,7]">beats 2 and 4 are swapped</option>
-        <option value="[0,1,2,3,8,9,10,11,4,5,6,7,12,13,14,15]">beats 2 and 3 are swapped</option>
-        <option value="[0,1,4,5,8,9,12,13,2,3,6,7,10,11,14,15]">for each measure the first halves of all beats are played first, and then the second halves</option>
-        <option value="[0,4,8,12,1,5,9,13,2,6,10,14,3,7,11,15]">for each measure the first quarters of all beats are played first, and then the second quarters, then the third etc</option>
-        <option value="null">Custom...</option>
-      </select>
-      <canvas id=cvs></canvas>
       <fieldset>
         <legend>Load Megalovania audio file</legend>
-        <input type=file id=file disabled>
+        <input type=file id=file>
       </fieldset>
-      <button id=playBtn disabled>Play!</button>
-      <button id=configBtn onclick="configure()">config</button>
+      <div>
+        <textarea id=codebox></textarea>
+      </div>
+      <div>
+        <button id=generateBtn onclick="generate()" disabled>generate</button>
+      </div>
+      <div>
+        <audio id=audioEl controls></audio>
+      </div>
     </main>
+    <script src="modules-bundle.min.js"></script>
     <script src="script.js"></script>
   </body>
 </html>
