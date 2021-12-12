@@ -16,16 +16,24 @@ if (typeof Blob.prototype.arrayBuffer !== "function") {
 }
 
 /** length of quarter beat in seconds */
-const qlen = 0.125
+var qlen = 0.125
 /** sequence for rearranging quarter beats */
 var qseq = [ 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15 ]
+/** number of quarter beats in each measure */
+var mlenq = 16
 /** start time of first beat in seconds */
-const start = 0
+var start = 0
+
+function configure() {
+  var r = prompt("", JSON.stringify({ qlen, qseq, mlenq, start }))
+  if (r) ({ qlen, qseq, mlenq, start } = JSON.parse(r))
+  file.disabled = false
+}
 
 const logoEl = new Image()
 logoEl.onload = () => {
-  cvs.width = //logoEl.width
-    660
+  cvs.width = logoEl.width
+    //660
   cvs.height = logoEl.height
   cvsCxt.drawImage(logoEl, 0, 0)
 }
@@ -66,27 +74,33 @@ file.onchange = () => {
       /** length of quarter beat in samples */
       const qlens = sampleRate * qlen
       for (let i = 0; i < channelCount; ++i)
-        channels.push(aub.getChannelData(i).slice(0));
+        channels.push(aub.getChannelData(i));
 
-      /** start time of current measure in samples */
-      var sample = sampleRate * start
-      while (sample < sampleCount) {
+      var dur2 = start + (aub.duration -start) / mlenq * qseq.length
+      var aub2 = audioContext.createBuffer(channelCount, 0| sampleRate * dur2, sampleRate);
+
+      /** start time of current measure in source, in samples */
+      var isample = sampleRate * start
+      /** start time of current measure in desination, in samples */
+      var psample = isample
+      while (isample < sampleCount) {
         qseq.forEach((qp, qi) => {
           channels.forEach((channel, ci) => {
-            /** start time of quarter beat to be copied to, in samples */
-            let qps = sample + qlens * qp
-            /** start time of quarter beat being copied from, in samples */
-            let qis = sample + qlens * qi
+            /** start time of source quarter beat in samples */
+            let qps = psample + qlens * qp
+            /** start time of destination quarter beat in samples */
+            let qis = isample + qlens * qi
             // copying our quarter beat
             let subarr = channel.subarray(0| qps, 0| qps + qlens)
-            aub.copyToChannel(subarr, ci, qis)
+            aub2.copyToChannel(subarr, ci, qis)
           })
         })
-        sample += qlens * qseq.length
+        isample += qlens * qseq.length
+        psample += qlens * mlenq
       }
 
       var src = audioContext.createBufferSource()
-      src.buffer = aub
+      src.buffer = aub2
       src.connect(audioContext.destination)
       playBtn.onclick = () => {
         src.start()
