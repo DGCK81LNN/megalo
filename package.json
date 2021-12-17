@@ -1,8 +1,0 @@
-{
-  "dependencies": {
-    "audiobuffer-to-wav": "^1.0.0"
-  },
-  "devDependencies": {
-    "esbuild": "^0.14.2"
-  }
-}
