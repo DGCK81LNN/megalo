@@ -90,14 +90,13 @@ async function generate() {
       var _t = Date.now()
       if (_t - t > 40) {
         t = _t
-        await new Promise(r => setTimeout(r, 10))
+        await new Promise(r => setTimeout(r, 0))
       }
     }
 
     progress.removeAttribute('value')
     await new Promise(r => setTimeout(r, 10))
-    // TODO: make audioBufferToWav() async
-    var blob = new Blob([audioBufferToWav(aub2)], { type: "audio/wave" })
+    var blob = new Blob([await audioBufferToWav(aub2)], { type: "audio/wave" })
     progress.value = 1
     audioEl.src = URL.createObjectURL(blob)
   } catch (e) {
