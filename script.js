@@ -107,4 +107,29 @@ async function generate() {
   }
 }
 
+function idload() {
+  ({ qlen, qseq, mlenq, start } = JSON.parse(codebox.value))
+  var idcode = "Z8-01234567"
+  try {
+    var l = Math.round(Math.log2(qlen / 0.5))
+    if (l < -18 || l >= 18) throw null
+    l < 0 && (l += 36)
+    idcode = l.toString(36) +
+      mlenq.toString(36) +
+      "-" +
+      qseq.map(d => d.toString(36)).join("")
+  } catch (_) { }
+
+  idcode = prompt("idcode", idcode)
+  if (!idcode) return
+  var match = idcode.match(/^(\w)(\w)-(\w+)$/)
+  if (!match) return alert("invalid")
+  var l = parseInt(match[1], 36)
+  if (l >= 18) l -= 36
+  qlen = Math.pow(2, l) * 0.5
+  mlenq = parseInt(match[2], 36)
+  qseq = [...match[3]].map(d => parseInt(d, 36))
+codebox.value = JSON.stringify({ qlen, qseq, mlenq, start }, null, 1).replace(/\n[ ]*/g, ' ')
+}
+
 document.write('ok')
