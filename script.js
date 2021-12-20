@@ -63,6 +63,7 @@ async function generate() {
       channels.push(aub.getChannelData(i));
 
     var dur2 = start + (aub.duration -start) / mlenq * qseq.length
+    //alert(JSON.stringify({ dur: aub.duration, start, dur2, mlenq, qseqlen: qseq.length }))
     var aub2 = audioContext.createBuffer(channelCount, 0| sampleRate * dur2, sampleRate);
 
     var t = Date.now()
@@ -71,8 +72,9 @@ async function generate() {
     var isample = sampleRate * start
     /** start time of current measure in desination, in samples */
     var psample = isample
-    while (isample < sampleCount) {
+    while (psample < sampleCount) {
       qseq.forEach((qp, qi) => {
+        if (qp < 0) return
         channels.forEach((channel, ci) => {
           /** start time of source quarter beat in samples */
           let qps = psample + qlens * qp
@@ -82,8 +84,8 @@ async function generate() {
           let subarr = channel.subarray(0| qps, 0| qps + qlens)
           aub2.copyToChannel(subarr, ci, qis)
         })
-        progress.value = isample / aub2.length
       })
+      progress.value = isample / aub2.length
       isample += qlens * qseq.length
       psample += qlens * mlenq
 
@@ -117,18 +119,18 @@ function idload() {
     idcode = l.toString(36) +
       mlenq.toString(36) +
       "-" +
-      qseq.map(d => d.toString(36)).join("")
+      qseq.map(d => d < 0 ? "$" : d.toString(36)).join("")
   } catch (_) { }
 
   idcode = prompt("idcode", idcode)
   if (!idcode) return
-  var match = idcode.match(/^(\w)(\w)-(\w+)$/)
+  var match = idcode.match(/^(\w)(\w)-([\w$]+)$/)
   if (!match) return alert("invalid")
   var l = parseInt(match[1], 36)
   if (l >= 18) l -= 36
   qlen = Math.pow(2, l) * 0.5
   mlenq = parseInt(match[2], 36)
-  qseq = [...match[3]].map(d => parseInt(d, 36))
+  qseq = [...match[3]].map(d => d === "$" ? -1 : parseInt(d, 36))
 codebox.value = JSON.stringify({ qlen, qseq, mlenq, start }, null, 1).replace(/\n[ ]*/g, ' ')
 }
 
