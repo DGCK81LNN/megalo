@@ -15,12 +15,13 @@ if (typeof Blob.prototype.arrayBuffer !== "function") {
   };
 }
 
+var bpm = 120, log2qlenb = -1
 /** length of quarter beat in seconds */
-var qlen = 0.125
+var qlen = 0
 /** sequence for rearranging quarter beats */
-var qseq = [ 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15 ]
+var qseq = [ 0, 1, 2, 3, 4, 5, 6, 7 ]
 /** number of quarter beats in each measure */
-var mlenq = 16
+var mlenq = 8
 /** start time of first beat in seconds */
 var start = 0
 /** @type {AudioBuffer} */
@@ -47,12 +48,14 @@ file.onchange = () => {
     })
 }
 
-codebox.value = JSON.stringify({ qlen, qseq, mlenq, start }, null, 1).replace(/\n[ ]*/g, ' ')
+codebox.value = JSON.stringify({ bpm, log2qlenb, qseq, mlenq, start }, null, 1).replace(/\n[ ]*/g, ' ')
 async function generate() {
   generateBtn.disabled = true
   progress.removeAttribute('value')
   try {
-    ({ qlen, qseq, mlenq, start } = JSON.parse(codebox.value))
+    ({ bpm, log2qlenb, qseq, mlenq, start } = JSON.parse(codebox.value))
+    qlen = 60 / bpm * Math.pow(2, log2qlenb)
+
     var channels = [];
     const channelCount = aub.numberOfChannels;
     const sampleRate = aub.sampleRate
@@ -110,12 +113,12 @@ async function generate() {
 }
 
 function idload() {
-  ({ qlen, qseq, mlenq, start } = JSON.parse(codebox.value))
-  var idcode = "Z8-01234567"
+  var idcode = "z8-01234567"
   try {
-    var l = Math.round(Math.log2(qlen / 0.5))
+    ({ bpm, log2qlenb, qseq, mlenq, start } = JSON.parse(codebox.value))
+    var l = log2qlenb
     if (l < -18 || l >= 18) throw null
-    l < 0 && (l += 36)
+    if (l < 0) l += 36
     idcode = l.toString(36) +
       mlenq.toString(36) +
       "-" +
@@ -126,12 +129,11 @@ function idload() {
   if (!idcode) return
   var match = idcode.match(/^(\w)(\w)-([\w$]+)$/)
   if (!match) return alert("invalid")
-  var l = parseInt(match[1], 36)
-  if (l >= 18) l -= 36
-  qlen = Math.pow(2, l) * 0.5
+  log2qlenb = parseInt(match[1], 36)
+  if (log2qlenb >= 18) log2qlenb -= 36
   mlenq = parseInt(match[2], 36)
   qseq = [...match[3]].map(d => d === "$" ? -1 : parseInt(d, 36))
-codebox.value = JSON.stringify({ qlen, qseq, mlenq, start }, null, 1).replace(/\n[ ]*/g, ' ')
+codebox.value = JSON.stringify({ bpm, log2qlenb, qseq, mlenq, start }, null, 1).replace(/\n[ ]*/g, ' ')
 }
 
 document.write('ok')
