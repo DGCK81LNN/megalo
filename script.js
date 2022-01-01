@@ -59,6 +59,7 @@ function myFetch(url) {
 
 /** @type {AudioContext} */
 const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+const encodeWavWorker = new Worker("worker.js")
 
 var trackid = "", idcode = "", bloburl = ""
 var bpm = 120, log2qlenb = -1
@@ -163,7 +164,7 @@ async function generate() {
 
     progress.removeAttribute('value')
     await new Promise(r => setTimeout(r, 10))
-    var blob = new Blob([await audioBufferToWav(aub2)], { type: "audio/x-wav" })
+    var blob = new Blob([ await encodeWav(aub2) ], { type: "audio/x-wav" })
     progress.value = 1
     bloburl = audioEl.src = URL.createObjectURL(blob)
     saveBtn.disabled = false
@@ -180,6 +181,39 @@ function savewav() {
   link.href = bloburl
   link.download = `${trackid}_${idcode}.wav`
   link.click()
+}
+
+function encodeWav(aub) {
+  var channels = []
+  for (let i = 0; i < aub.numberOfChannels; ++i)
+    channels.push(aub.getChannelData(i))
+
+  return new Promise((resolve, reject) => {
+    encodeWavWorker.onmessage = ({ data }) => {
+      switch (data.type) {
+        case "progress":
+          progress.value = data.data
+          break
+        case "messageerror":
+          reject(new Error("Worker message error"))
+          break
+        case "success":
+          resolve(data.data)
+          break
+      }
+    }
+    encodeWavWorker.onmessageerror = (() => {
+      reject(new Error("Worker message error"))
+    })
+    encodeWavWorker.onerror = ev => {
+      reject(ev.error || new Error("Worker error: " + ev.message))
+    }
+    encodeWavWorker.postMessage({
+      sampleRate: aub.sampleRate,
+      sampleCount: aub.length,
+      channels,
+    })
+  })
 }
 
 document.write('ok')
