@@ -1,25 +1,26 @@
 <!DOCTYPE HTML>
-<html lang=en>
+<html lang=cmn-Hans>
   <head>
     <meta charset=UTF-8>
     <meta name=viewport content="width=device-width,initial-scale=1,user-scalable=no">
-    <title>Megalo</title>
+    <title>megalo</title>
     <link rel=stylesheet href="style.css">
   </head>
   <body>
     <main>
-      <h1><cite id=tracknameEl>MEGALOVANIA</cite> but...</h1>
-      <select id=trackselect><option value>(select track...)</option></select>
+      <h1 lang=en><cite id=tracknameEl>MEGALOVANIA</cite> but...</h1>
+      <select id=trackselect><option value>* (选择曲目...)</option></select>
       <div>
-        <input id=idbox value="z30213">
-        <button id=generateBtn onclick="generate()" disabled>generate</button>
-        <button id=saveBtn onclick="savewav()" disabled>save</button>
+        <input id=idbox value="z30213" placeholder="变换码">
+        <button id=generateBtn onclick="generate()" disabled>生成</button>
+        <button id=saveBtn onclick="savewav()" disabled>保存 WAV</button>
       </div>
       <div>
         <audio id=audioEl controls></audio>
       </div>
       <div>
         <progress id=progress value=0 max=1></progress>
+        <span id=statusEl>就绪</span>
       </div>
     </main>
     <script src="script.js"></script>

@@ -46,19 +46,18 @@ function myFetch(url) {
     xhr.open("get", url)
     xhr.responseType = "arraybuffer"
     xhr.onload = () => resolve(xhr.response)
-    xhr.onerror = () => reject(new Error("loading failed"))
+    xhr.onerror = ev => reject(ev.error || ev.message)
     xhr.onprogress = ev => {
       if (ev.lengthComputable)
-        progress.value = ev.loaded / ev.total
+        status(ev.loaded / ev.total, `下载音频... ${(ev.loaded / 0x100000).toFixed(2)} / ${(ev.total / 0x100000).toFixed(2)}MiB`)
       else
-        progress.removeAttribute('value')
+        status(null, "下载音频...")
     }
     xhr.send(null)
   })
 }
 
-/** @type {AudioContext} */
-const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+const audioContext = new OfflineAudioContext(1, 1, 44100);
 const encodeWavWorker = new Worker("worker.js")
 
 var trackid = "", idcode = "", bloburl = ""
@@ -79,23 +78,23 @@ trackselect.onchange = () => {
   if (!trackselect.value) return
   trackselect.disabled = true
   saveBtn.disabled = true
-  progress.value = 0
+  status(0, "下载曲目...")
   ;({ id: trackid, bpm, start } = tracks[trackselect.value])
   tracknameEl.textContent = tracks[trackselect.value].name
   myFetch(`assets/${trackid}.mp3`)
     .then((arrayBuffer) => new Promise((res, rej) => {
-      progress.removeAttribute('value')
+      status(null, "解析音频数据...")
       return audioContext.decodeAudioData(arrayBuffer, res, rej)
     }))
     .catch(e => {
-      alert(e)
       trackselect.disabled = false
-      progress.value = 0
+      status(0, "加载曲目失败")
+      error(e, "加载曲目")
     })
     .then(_aub => {
       trackselect.disabled = false
       generateBtn.disabled = false
-      progress.value = 1
+      status(1, "加载曲目完成")
       aub = _aub
     })
 }
@@ -103,10 +102,14 @@ trackselect.onchange = () => {
 async function generate() {
   generateBtn.disabled = true
   saveBtn.disabled = true
-  progress.removeAttribute('value')
+  status(null, "生成...")
   idcode = idbox.value
   var match = idcode.match(/^(\w)(\w)([\w$]+)$/)
-  if (!match) return alert("invalid")
+  if (!match) {
+    status(0, "生成失败")
+    alert("生成出错：变换码格式不对")
+    return
+  }
   log2qlenb = parseInt(match[1], 36)
   if (log2qlenb >= 18) log2qlenb -= 36
   mlenq = parseInt(match[2], 36) + 1
@@ -151,7 +154,8 @@ async function generate() {
           aub2.copyToChannel(subarr, ci, qis)
         })
       })
-      progress.value = isample / aub2.length
+      let prog = isample / aub2.length
+      status(prog, `变换... ${0 | (prog * 100)}%`)
       isample += qlens * qseq.length
       psample += qlens * mlenq
 
@@ -162,15 +166,17 @@ async function generate() {
       }
     }
 
-    progress.removeAttribute('value')
-    await new Promise(r => setTimeout(r, 10))
+    await new Promise(r => setTimeout(r, 0))
+
+    status(0, "编码 WAV...")
     var blob = new Blob([ await encodeWav(aub2) ], { type: "audio/x-wav" })
-    progress.value = 1
+
+    status(1, "生成完成")
     bloburl = audioEl.src = URL.createObjectURL(blob)
     saveBtn.disabled = false
-  } catch (e) {
-    alert(e)
-    progress.value = 0
+  } catch (err) {
+    status(0, "生成失败")
+    error(err)
   } finally {
     generateBtn.disabled = false
   }
@@ -192,10 +198,10 @@ function encodeWav(aub) {
     encodeWavWorker.onmessage = ({ data }) => {
       switch (data.type) {
         case "progress":
-          progress.value = data.data
+          status(data.data, `编码 WAV... ${0 | (data.data * 100)}%`)
           break
         case "messageerror":
-          reject(new Error("Worker message error"))
+          reject("主线程向子线程传递数据失败")
           break
         case "success":
           resolve(data.data)
@@ -203,10 +209,10 @@ function encodeWav(aub) {
       }
     }
     encodeWavWorker.onmessageerror = (() => {
-      reject(new Error("Worker message error"))
+      reject(new Error("子线程向主线程传递信息失败"))
     })
     encodeWavWorker.onerror = ev => {
-      reject(ev.error || new Error("Worker error: " + ev.message))
+      reject(ev.error || ev.message)
     }
     encodeWavWorker.postMessage({
       sampleRate: aub.sampleRate,
@@ -214,6 +220,20 @@ function encodeWav(aub) {
       channels,
     })
   })
+}
+
+function error(err, context) {
+  alert(`${context}出错：${err}`)
+  if (typeof err === "object") throw err
+}
+
+function status(prog, msg) {
+  if (prog === null)
+    progress.removeAttribute("value")
+  else
+    progress.value = prog
+  if (msg)
+    statusEl.textContent = msg
 }
 
 document.write('ok')
