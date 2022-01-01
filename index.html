@@ -8,17 +8,12 @@
   </head>
   <body>
     <main>
-      <h1>Megalovania but...</h1>
-      <fieldset>
-        <legend>Load Megalovania audio file</legend>
-        <input type=file id=file>
-      </fieldset>
-      <div>
-        <textarea id=codebox></textarea>
-      </div>
+      <h1><cite id=tracknameEl>MEGALOVANIA</cite> but...</h1>
+      <select id=trackselect><option>(select track...)</option></select>
       <div>
         <button id=idloadBtn onclick="idload()">IDLoad</button>
         <button id=generateBtn onclick="generate()" disabled>generate</button>
+        <button id=saveBtn onclick="savewav()" disabled>save</button>
       </div>
       <div>
         <audio id=audioEl controls></audio>

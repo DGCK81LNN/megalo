@@ -1,20 +1,66 @@
 document.write('and... ')
 
+const tracks = [
+  { id: "mglv", name: "MEGALOVANIA", bpm: 120, start: 0 },
+  { id: "htch", name: "Heartache", bpm: 119.5, start: 0 },
+  { id: "sans", name: "sans.", bpm: 128, start: 0 },
+  { id: "btsl", name: "Bonetrousle", bpm: 150, start: 0 },
+  { id: "dtst", name: "Dating Start!", bpm: 115, start: 0 },
+  { id: "dumy", name: "Dummy!", bpm: 125, start: 0 },
+  { id: "spkt", name: "Spooktune", bpm: 122, start: 0 },
+  { id: "tmvl", name: "Temmie Village", bpm: 84, start: 0 },
+  { id: "sprj", name: "Spear of Justice", bpm: 263, start: 0 },
+  { id: "mtcr", name: "Metal Crusher", bpm: 116, start: 0 },
+  { id: "cyrc", name: "Can You Really Call This A Hotel, I Didn't Receive A Mint On My Pillow Or Anything", bpm: 127, start: 0 },
+  { id: "dtrp", name: "Death Report", bpm: 270, start: 0 },
+  { id: "spdd", name: "Spider Dance", bpm: 115, start: 0 },
+  { id: "wren", name: "Wrong Enemy !?", bpm: 112, start: 0 },
+  { id: "dbgl", name: "Death by Glamour", bpm: 148, start: 0 },
+  { id: "stmp", name: "Song That Might Play When You Fight Sans", bpm: 120, start: 2 },
+  { id: "finl", name: "Finale", bpm: 95, start: 0 },
+  { id: "amlg", name: "Amalgram", bpm: 90.9, start: 0 },
+  { id: "bath", name: "Battle Against a True Hero", bpm: 150, start: 0 },
+  { id: "lanc", name: "Lancer", bpm: 165, start: 0 },
+  { id: "rudb", name: "Rude Buster", bpm: 140, start: 0 },
+  { id: "chkd", name: "Checker Dance", bpm: 160, start: 0 },
+  { id: "vsus", name: "Vs. Susie", bpm: 148, start: 0 },
+  { id: "chkn", name: "Chaos King", bpm: 147, start: 0 },
+  { id: "cbbt", name: "Cyber Battle (Solo)", bpm: 125, start: 0 },
+  { id: "smrc", name: "Smart Race", bpm: 150, start: 0 },
+  { id: "pdrp", name: "Pandora Palace", bpm: 100, start: 0 },
+  { id: "ipnr", name: "It's Pronounced “Rules”", bpm: 145, start: 0 },
+  { id: "atkq", name: "Attack of the Killer Queen", bpm: 144, start: 0 },
+  { id: "bsht", name: "BIG SHOT", bpm: 140, start: 0 },
+  //{ id: "", name: "", bpm: 120, start: 0 },
+]
+
+tracks.forEach((track, index) => {
+  var el = trackselect.appendChild(document.createElement("option"))
+  el.textContent = track.name
+  el.value = index
+})
+
+function myFetch(url) {
+  return new Promise((resolve, reject) => {
+    var xhr = new XMLHttpRequest()
+    xhr.open("get", url)
+    xhr.responseType = "arraybuffer"
+    xhr.onload = () => resolve(xhr.response)
+    xhr.onerror = () => reject(new Error("loading failed"))
+    xhr.onprogress = ev => {
+      if (ev.lengthComputable)
+        progress.value = ev.loaded / ev.total
+      else
+        progress.removeAttribute('value')
+    }
+    xhr.send(null)
+  })
+}
+
 /** @type {AudioContext} */
 const audioContext = new (window.AudioContext || window.webkitAudioContext)();
 
-// Blob.arrayBuffer() polyfill
-if (typeof Blob.prototype.arrayBuffer !== "function") {
-  Blob.prototype.arrayBuffer = function () {
-    return new Promise((resolve, reject) => {
-      var fileReader = new FileReader();
-      fileReader.onload = () => resolve(fileReader.result);
-      fileReader.onerror = () => reject(fileReader.error);
-      fileReader.readAsArrayBuffer(this);
-    });
-  };
-}
-
+var trackid = "", idcode = "", bloburl = ""
 var bpm = 120, log2qlenb = -1
 /** length of quarter beat in seconds */
 var qlen = 0
@@ -27,33 +73,37 @@ var start = 0
 /** @type {AudioBuffer} */
 var aub = null
 
-file.onchange = () => {
-  file.disabled = true
+trackselect.onchange = () => {
   generateBtn.disabled = true
+  if (!trackselect.value) return
+  trackselect.disabled = true
+  saveBtn.disabled = true
   progress.removeAttribute('value')
-  file.files[0].arrayBuffer()
+  ;({ id: trackid, bpm, start } = tracks[trackselect.value])
+  tracknameEl.textContent = tracks[trackselect.value].name
+  myFetch(`assets/${trackid}.mp3`)
     .then(/** @returns {Promise<AudioBuffer>} */
           (arrayBuffer) => new Promise(
             (res, rej) => audioContext.decodeAudioData(arrayBuffer, res, rej)
           ))
+    .catch(e => {
+      alert(e)
+      trackselect.disabled = false
+      progress.value = 0
+    })
     .then(_aub => {
-      file.disabled = false
+      trackselect.disabled = false
       generateBtn.disabled = false
       progress.value = 1
       aub = _aub
-    }, e => {
-      file.disabled = false
-      progress.value = 0
-      alert(e)
     })
 }
 
-codebox.value = JSON.stringify({ bpm, log2qlenb, qseq, mlenq, start }, null, 1).replace(/\n[ ]*/g, ' ')
 async function generate() {
   generateBtn.disabled = true
+  saveBtn.disabled = true
   progress.removeAttribute('value')
   try {
-    ({ bpm, log2qlenb, qseq, mlenq, start } = JSON.parse(codebox.value))
     qlen = 60 / bpm * Math.pow(2, log2qlenb)
 
     var channels = [];
@@ -66,11 +116,11 @@ async function generate() {
       channels.push(aub.getChannelData(i));
 
     var dur2 = start + (aub.duration -start) / mlenq * qseq.length
-    //alert(JSON.stringify({ dur: aub.duration, start, dur2, mlenq, qseqlen: qseq.length }))
     var aub2 = audioContext.createBuffer(channelCount, 0| sampleRate * dur2, sampleRate);
 
     var t = Date.now()
 
+    // TODO: copy parts before `start`
     /** start time of current measure in source, in samples */
     var isample = sampleRate * start
     /** start time of current measure in desination, in samples */
@@ -101,9 +151,10 @@ async function generate() {
 
     progress.removeAttribute('value')
     await new Promise(r => setTimeout(r, 10))
-    var blob = new Blob([await audioBufferToWav(aub2)], { type: "audio/wave" })
+    var blob = new Blob([await audioBufferToWav(aub2)], { type: "audio/x-wav" })
     progress.value = 1
-    audioEl.src = URL.createObjectURL(blob)
+    bloburl = audioEl.src = URL.createObjectURL(blob)
+    saveBtn.disabled = false
   } catch (e) {
     alert(e)
     progress.value = 0
@@ -112,28 +163,34 @@ async function generate() {
   }
 }
 
+function savewav() {
+  var link = document.createElement("a")
+  link.href = bloburl
+  link.download = `${trackid}_${idcode}.wav`
+  link.click()
+}
+
 function idload() {
-  var idcode = "z8-01234567"
   try {
-    ({ bpm, log2qlenb, qseq, mlenq, start } = JSON.parse(codebox.value))
     var l = log2qlenb
     if (l < -18 || l >= 18) throw null
     if (l < 0) l += 36
     idcode = l.toString(36) +
-      mlenq.toString(36) +
-      "-" +
+      (mlenq - 1).toString(36) +
       qseq.map(d => d < 0 ? "$" : d.toString(36)).join("")
-  } catch (_) { }
+  } catch (_) {
+    idcode = "z701234567"
+  }
 
-  idcode = prompt("idcode", idcode)
+  var _idcode = prompt("idcode", idcode)
   if (!idcode) return
-  var match = idcode.match(/^(\w)(\w)-([\w$]+)$/)
+  idcode = _idcode
+  var match = idcode.match(/^(\w)(\w)([\w$]+)$/)
   if (!match) return alert("invalid")
   log2qlenb = parseInt(match[1], 36)
   if (log2qlenb >= 18) log2qlenb -= 36
-  mlenq = parseInt(match[2], 36)
+  mlenq = parseInt(match[2], 36) + 1
   qseq = [...match[3]].map(d => d === "$" ? -1 : parseInt(d, 36))
-codebox.value = JSON.stringify({ bpm, log2qlenb, qseq, mlenq, start }, null, 1).replace(/\n[ ]*/g, ' ')
 }
 
 document.write('ok')

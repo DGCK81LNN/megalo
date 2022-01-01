@@ -1,14 +1,10 @@
 html {
   background: black;
   color: white;
-}/*
+}
 select {
   width: 100%;
 }
-#cvs {
-  margin-top: 1rem;
-  max-width: 100%;
-}*/
 #codebox {
   width: 100%;
   height: 10rem;
