@@ -51,7 +51,7 @@ function myFetch(url) {
       if (ev.lengthComputable)
         status(ev.loaded / ev.total, `下载音频... ${(ev.loaded / 0x100000).toFixed(2)} / ${(ev.total / 0x100000).toFixed(2)}MiB`)
       else
-        status(null, "下载音频...")
+        status(null)
     }
     xhr.send(null)
   })
@@ -78,7 +78,7 @@ trackselect.onchange = () => {
   if (!trackselect.value) return
   trackselect.disabled = true
   saveBtn.disabled = true
-  status(0, "下载曲目...")
+  status(0, "下载音频...")
   ;({ id: trackid, bpm, start } = tracks[trackselect.value])
   tracknameEl.textContent = tracks[trackselect.value].name
   myFetch(`assets/${trackid}.mp3`)
