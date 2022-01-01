@@ -78,14 +78,14 @@ trackselect.onchange = () => {
   if (!trackselect.value) return
   trackselect.disabled = true
   saveBtn.disabled = true
-  progress.removeAttribute('value')
+  progress.value = 0
   ;({ id: trackid, bpm, start } = tracks[trackselect.value])
   tracknameEl.textContent = tracks[trackselect.value].name
   myFetch(`assets/${trackid}.mp3`)
-    .then(/** @returns {Promise<AudioBuffer>} */
-          (arrayBuffer) => new Promise(
-            (res, rej) => audioContext.decodeAudioData(arrayBuffer, res, rej)
-          ))
+    .then((arrayBuffer) => new Promise((res, rej) => {
+      progress.removeAttribute('value')
+      return audioContext.decodeAudioData(arrayBuffer, res, rej)
+    }))
     .catch(e => {
       alert(e)
       trackselect.disabled = false
@@ -103,6 +103,14 @@ async function generate() {
   generateBtn.disabled = true
   saveBtn.disabled = true
   progress.removeAttribute('value')
+  idcode = idbox.value
+  var match = idcode.match(/^(\w)(\w)([\w$]+)$/)
+  if (!match) return alert("invalid")
+  log2qlenb = parseInt(match[1], 36)
+  if (log2qlenb >= 18) log2qlenb -= 36
+  mlenq = parseInt(match[2], 36) + 1
+  qseq = [...match[3]].map(d => d === "$" ? -1 : parseInt(d, 36))
+
   try {
     qlen = 60 / bpm * Math.pow(2, log2qlenb)
 
@@ -120,11 +128,15 @@ async function generate() {
 
     var t = Date.now()
 
-    // TODO: copy parts before `start`
     /** start time of current measure in source, in samples */
     var isample = sampleRate * start
     /** start time of current measure in desination, in samples */
     var psample = isample
+
+    channels.forEach((channel, ci) => {
+      aub2.copyToChannel(channel.subarray(0, isample), ci, 0)
+    })
+
     while (psample < sampleCount) {
       qseq.forEach((qp, qi) => {
         if (qp < 0) return
@@ -168,29 +180,6 @@ function savewav() {
   link.href = bloburl
   link.download = `${trackid}_${idcode}.wav`
   link.click()
-}
-
-function idload() {
-  try {
-    var l = log2qlenb
-    if (l < -18 || l >= 18) throw null
-    if (l < 0) l += 36
-    idcode = l.toString(36) +
-      (mlenq - 1).toString(36) +
-      qseq.map(d => d < 0 ? "$" : d.toString(36)).join("")
-  } catch (_) {
-    idcode = "z701234567"
-  }
-
-  var _idcode = prompt("idcode", idcode)
-  if (!idcode) return
-  idcode = _idcode
-  var match = idcode.match(/^(\w)(\w)([\w$]+)$/)
-  if (!match) return alert("invalid")
-  log2qlenb = parseInt(match[1], 36)
-  if (log2qlenb >= 18) log2qlenb -= 36
-  mlenq = parseInt(match[2], 36) + 1
-  qseq = [...match[3]].map(d => d === "$" ? -1 : parseInt(d, 36))
 }
 
 document.write('ok')
