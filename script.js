@@ -61,13 +61,15 @@ const audioContext = new OfflineAudioContext(1, 1, 44100);
 const encodeWavWorker = new Worker("worker.js")
 
 var trackid = "", idcode = "", bloburl = ""
-var bpm = 120, log2qlenb = -1
-/** length of quarter beat in seconds */
-var qlen = 0
-/** sequence for rearranging quarter beats */
-var qseq = [ 0, 1, 2, 3, 4, 5, 6, 7 ]
-/** number of quarter beats in each measure */
-var mlenq = 8
+var bpm = 120
+ /** 0 for one beat, 1 for two beats, -1 half beat, -2 quarter beat, etc */
+var unitSize = -1
+/** length of unit in seconds */
+var unitDur = 0
+/** sequence for rearranging units */
+var sequence = [ 0, 1, 2, 3, 4, 5, 6, 7 ]
+/** number of units in each measure */
+var unitsPerMeasure = 8
 /** start time of first beat in seconds */
 var start = 0
 /** @type {AudioBuffer} */
@@ -110,54 +112,54 @@ async function generate() {
     alert("生成出错：变换码格式不对")
     return
   }
-  log2qlenb = parseInt(match[1], 36)
-  if (log2qlenb >= 18) log2qlenb -= 36
-  mlenq = parseInt(match[2], 36) + 1
-  qseq = [...match[3]].map(d => d === "$" ? -1 : parseInt(d, 36))
+  unitSize = parseInt(match[1], 36)
+  if (unitSize >= 18) unitSize -= 36
+  unitsPerMeasure = parseInt(match[2], 36) + 1
+  sequence = [...match[3]].map(d => d === "$" ? -1 : parseInt(d, 36))
 
   try {
-    qlen = 60 / bpm * Math.pow(2, log2qlenb)
+    unitDur = 60 / bpm * Math.pow(2, unitSize)
 
     var channels = [];
     const channelCount = aub.numberOfChannels;
     const sampleRate = aub.sampleRate
-    const sampleCount = aub.length
-    /** length of quarter beat in samples */
-    const qlens = sampleRate * qlen
+    const len = aub.length
+    /** length of unit in samples */
+    const unitLen = sampleRate * unitDur
     for (let i = 0; i < channelCount; ++i)
       channels.push(aub.getChannelData(i));
 
-    var dur2 = start + (aub.duration -start) / mlenq * qseq.length
-    var aub2 = audioContext.createBuffer(channelCount, 0| sampleRate * dur2, sampleRate);
+    var newDur = start + (aub.duration -start) / unitsPerMeasure * sequence.length
+    var newAub = audioContext.createBuffer(channelCount, 0| sampleRate * newDur, sampleRate);
 
     var t = Date.now()
 
     /** start time of current measure in source, in samples */
-    var isample = sampleRate * start
+    var fromPos = sampleRate * start
     /** start time of current measure in desination, in samples */
-    var psample = isample
+    var toPos = fromPos
 
     channels.forEach((channel, ci) => {
-      aub2.copyToChannel(channel.subarray(0, isample), ci, 0)
+      newAub.copyToChannel(channel.subarray(0, fromPos), ci, 0)
     })
 
-    while (psample < sampleCount) {
-      qseq.forEach((qp, qi) => {
-        if (qp < 0) return
+    while (toPos < len) {
+      sequence.forEach((fromUnit, toUnit) => {
+        if (fromUnit < 0) return
         channels.forEach((channel, ci) => {
-          /** start time of source quarter beat in samples */
-          let qps = psample + qlens * qp
-          /** start time of destination quarter beat in samples */
-          let qis = isample + qlens * qi
-          // copying our quarter beat
-          let subarr = channel.subarray(0| qps, 0| qps + qlens)
-          aub2.copyToChannel(subarr, ci, qis)
+          /** start time of source unit in samples */
+          let toUnitPos = toPos + unitLen * fromUnit
+          /** start time of destination unit in samples */
+          let fromUnitPos = fromPos + unitLen * toUnit
+          // copying our unit
+          let subarr = channel.subarray(0| toUnitPos, 0| toUnitPos + unitLen)
+          newAub.copyToChannel(subarr, ci, fromUnitPos)
         })
       })
-      let prog = isample / aub2.length
+      let prog = fromPos / newAub.length
       status(prog, `变换... ${0 | (prog * 100)}%`)
-      isample += qlens * qseq.length
-      psample += qlens * mlenq
+      fromPos += unitLen * sequence.length
+      toPos += unitLen * unitsPerMeasure
 
       var _t = Date.now()
       if (_t - t > 40) {
@@ -169,7 +171,7 @@ async function generate() {
     await new Promise(r => setTimeout(r, 0))
 
     status(0, "编码 WAV...")
-    var blob = new Blob([ await encodeWav(aub2) ], { type: "audio/x-wav" })
+    var blob = new Blob([ await encodeWav(newAub) ], { type: "audio/x-wav" })
 
     status(1, "生成完成")
     bloburl = audioEl.src = URL.createObjectURL(blob)
