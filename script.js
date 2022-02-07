@@ -35,11 +35,13 @@ const tracks = [
   //{ id: "", name: "", bpm: 120, start: 0 },
 ]
 
+trackselect.textContent = ""
 tracks.forEach((track, index) => {
   var el = trackselect.appendChild(document.createElement("option"))
   el.textContent = track.name
   el.value = index
 })
+trackselect.selectedIndex = 0
 
 function myFetch(url) {
   return new Promise((resolve, reject) => {
@@ -73,60 +75,52 @@ var unitSize = -1
 /** length of unit in seconds */
 var unitDur = 0
 /** sequence for rearranging units */
-var sequence = [0, 1, 2, 3, 4, 5, 6, 7]
+var sequence = [0]
 /** number of units in each measure */
-var unitsPerMeasure = 8
+var unitsPerMeasure = 1
 /** start time of first beat in seconds */
 var start = 0
 /** @type {AudioBuffer} */
 var aub = null
 
 trackselect.onchange = () => {
-  generateBtn.disabled = true
-  if (!trackselect.value) return
-  trackselect.disabled = true
-  saveBtn.disabled = true
-  status(0, "下载音频...")
-  ;({ id: trackid, bpm, start } = tracks[trackselect.value])
   tracknameEl.textContent = tracks[trackselect.value].name
-  myFetch(`assets/${trackid}.mp3`)
-    .then(
-      arrayBuffer =>
-        new Promise((res, rej) => {
-          status(null, "解析音频数据...")
-          return audioContext.decodeAudioData(arrayBuffer, res, rej)
-        })
-    )
-    .catch(e => {
-      trackselect.disabled = false
-      status(0, "加载曲目失败")
-      error(e, "加载曲目")
-    })
-    .then(_aub => {
-      trackselect.disabled = false
-      generateBtn.disabled = false
-      status(1, "加载曲目完成")
-      aub = _aub
-    })
 }
 
 async function generate() {
+  trackselect.disabled = true
   generateBtn.disabled = true
   saveBtn.disabled = true
-  status(null, "生成...")
-  idcode = idbox.value
-  var match = idcode.match(/^(\w)(\w)([\w$]+)$/)
-  if (!match) {
-    status(0, "生成失败")
-    alert("生成出错：变换码格式不对")
-    return
-  }
-  unitSize = parseInt(match[1], 36)
-  if (unitSize >= 18) unitSize -= 36
-  unitsPerMeasure = parseInt(match[2], 36) + 1
-  sequence = [...match[3]].map(d => (d === "$" ? -1 : parseInt(d, 36)))
+  var stage = ""
 
   try {
+    idcode = idbox.value
+    var match = idcode.match(/^(\w)(\w)([\w$]+)$/)
+    if (!match) {
+      status(0, "变换码格式不对")
+      alert("错误：变换码格式不对")
+      return
+    }
+    unitSize = parseInt(match[1], 36)
+    if (unitSize >= 18) unitSize -= 36
+    unitsPerMeasure = parseInt(match[2], 36) + 1
+    sequence = [...match[3]].map(d => (d === "$" ? -1 : parseInt(d, 36)))
+
+    var track = tracks[trackselect.value]
+    ;({ id: trackid, bpm, start, aub } = track)
+    if (!aub) {
+      stage = "下载音频"
+      status(0, "下载音频...")
+      var arrayBuffer = await myFetch(`assets/${trackid}.mp3`)
+
+      stage = "解析音频数据"
+      track.aub = aub = await new Promise((res, rej) => {
+        status(null, "解析音频数据...")
+        return audioContext.decodeAudioData(arrayBuffer, res, rej)
+      })
+    }
+
+    stage = "变换"
     unitDur = (60 / bpm) * Math.pow(2, unitSize)
 
     var channels = []
@@ -186,16 +180,18 @@ async function generate() {
 
     await new Promise(r => setTimeout(r, 0))
 
+    stage = "编码 WAV"
     status(0, "编码 WAV...")
     var blob = new Blob([await encodeWav(newAub)], { type: "audio/x-wav" })
 
+    stage = ""
     status(1, "生成完成")
     bloburl = audioEl.src = URL.createObjectURL(blob)
     saveBtn.disabled = false
   } catch (err) {
-    status(0, "生成失败")
-    error(err)
+    error(err, stage)
   } finally {
+    trackselect.disabled = false
     generateBtn.disabled = false
   }
 }
@@ -227,7 +223,7 @@ function encodeWav(aub) {
       }
     }
     encodeWavWorker.onmessageerror = () => {
-      reject(new Error("子线程向主线程传递信息失败"))
+      reject("子线程向主线程传递数据失败")
     }
     encodeWavWorker.onerror = ev => {
       reject(ev.error || ev.message)
@@ -241,8 +237,10 @@ function encodeWav(aub) {
 }
 
 function error(err, context) {
-  alert(`${context}出错：${err}`)
+  var title = context ? context + "失败" : "未知错误"
+  alert(`${title}：${err}`)
   if (typeof err === "object") throw err
+  status(0, title)
 }
 
 function status(prog, msg) {
