@@ -1,5 +1,6 @@
-document.write('and... ')
+document.write("and... ")
 
+// prettier-ignore
 const tracks = [
   { id: "mglv", name: "MEGALOVANIA", bpm: 120, start: 0 },
   { id: "htch", name: "Heartache", bpm: 119.5, start: 0 },
@@ -49,25 +50,30 @@ function myFetch(url) {
     xhr.onerror = ev => reject(ev.error || ev.message)
     xhr.onprogress = ev => {
       if (ev.lengthComputable)
-        status(ev.loaded / ev.total, `下载音频... ${(ev.loaded / 0x100000).toFixed(2)} / ${(ev.total / 0x100000).toFixed(2)}MiB`)
-      else
-        status(null)
+        status(
+          ev.loaded / ev.total,
+          `下载音频... ${(ev.loaded / 0x100000).toFixed(2)} / ` +
+            `${(ev.total / 0x100000).toFixed(2)}MiB`
+        )
+      else status(null)
     }
     xhr.send(null)
   })
 }
 
-const audioContext = new OfflineAudioContext(1, 1, 44100);
+const audioContext = new OfflineAudioContext(1, 1, 44100)
 const encodeWavWorker = new Worker("worker.js")
 
-var trackid = "", idcode = "", bloburl = ""
+var trackid = "",
+  idcode = "",
+  bloburl = ""
 var bpm = 120
- /** 0 for one beat, 1 for two beats, -1 half beat, -2 quarter beat, etc */
+/** 0 for one beat, 1 for two beats, -1 half beat, -2 quarter beat, etc */
 var unitSize = -1
 /** length of unit in seconds */
 var unitDur = 0
 /** sequence for rearranging units */
-var sequence = [ 0, 1, 2, 3, 4, 5, 6, 7 ]
+var sequence = [0, 1, 2, 3, 4, 5, 6, 7]
 /** number of units in each measure */
 var unitsPerMeasure = 8
 /** start time of first beat in seconds */
@@ -84,10 +90,13 @@ trackselect.onchange = () => {
   ;({ id: trackid, bpm, start } = tracks[trackselect.value])
   tracknameEl.textContent = tracks[trackselect.value].name
   myFetch(`assets/${trackid}.mp3`)
-    .then((arrayBuffer) => new Promise((res, rej) => {
-      status(null, "解析音频数据...")
-      return audioContext.decodeAudioData(arrayBuffer, res, rej)
-    }))
+    .then(
+      arrayBuffer =>
+        new Promise((res, rej) => {
+          status(null, "解析音频数据...")
+          return audioContext.decodeAudioData(arrayBuffer, res, rej)
+        })
+    )
     .catch(e => {
       trackselect.disabled = false
       status(0, "加载曲目失败")
@@ -115,22 +124,26 @@ async function generate() {
   unitSize = parseInt(match[1], 36)
   if (unitSize >= 18) unitSize -= 36
   unitsPerMeasure = parseInt(match[2], 36) + 1
-  sequence = [...match[3]].map(d => d === "$" ? -1 : parseInt(d, 36))
+  sequence = [...match[3]].map(d => (d === "$" ? -1 : parseInt(d, 36)))
 
   try {
-    unitDur = 60 / bpm * Math.pow(2, unitSize)
+    unitDur = (60 / bpm) * Math.pow(2, unitSize)
 
-    var channels = [];
-    const channelCount = aub.numberOfChannels;
+    var channels = []
+    const channelCount = aub.numberOfChannels
     const sampleRate = aub.sampleRate
     const len = aub.length
     /** length of unit in samples */
     const unitLen = sampleRate * unitDur
-    for (let i = 0; i < channelCount; ++i)
-      channels.push(aub.getChannelData(i));
+    for (let i = 0; i < channelCount; ++i) channels.push(aub.getChannelData(i))
 
-    var newDur = start + (aub.duration -start) / unitsPerMeasure * sequence.length
-    var newAub = audioContext.createBuffer(channelCount, 0| sampleRate * newDur, sampleRate);
+    var ratio = sequence.length / unitsPerMeasure
+    var newDur = start + (aub.duration - start) * ratio
+    var newAub = audioContext.createBuffer(
+      channelCount,
+      0 | (sampleRate * newDur),
+      sampleRate
+    )
 
     var t = Date.now()
 
@@ -152,7 +165,10 @@ async function generate() {
           /** start time of destination unit in samples */
           let fromUnitPos = fromPos + unitLen * toUnit
           // copying our unit
-          let subarr = channel.subarray(0| toUnitPos, 0| toUnitPos + unitLen)
+          let subarr = channel.subarray(
+            0 | toUnitPos,
+            0 | (toUnitPos + unitLen)
+          )
           newAub.copyToChannel(subarr, ci, fromUnitPos)
         })
       })
@@ -171,7 +187,7 @@ async function generate() {
     await new Promise(r => setTimeout(r, 0))
 
     status(0, "编码 WAV...")
-    var blob = new Blob([ await encodeWav(newAub) ], { type: "audio/x-wav" })
+    var blob = new Blob([await encodeWav(newAub)], { type: "audio/x-wav" })
 
     status(1, "生成完成")
     bloburl = audioEl.src = URL.createObjectURL(blob)
@@ -210,9 +226,9 @@ function encodeWav(aub) {
           break
       }
     }
-    encodeWavWorker.onmessageerror = (() => {
+    encodeWavWorker.onmessageerror = () => {
       reject(new Error("子线程向主线程传递信息失败"))
-    })
+    }
     encodeWavWorker.onerror = ev => {
       reject(ev.error || ev.message)
     }
@@ -230,12 +246,9 @@ function error(err, context) {
 }
 
 function status(prog, msg) {
-  if (prog === null)
-    progress.removeAttribute("value")
-  else
-    progress.value = prog
-  if (msg)
-    statusEl.textContent = msg
+  if (prog === null) progress.removeAttribute("value")
+  else progress.value = prog
+  if (msg) statusEl.textContent = msg
 }
 
-document.write('ok')
+document.write("ok")
