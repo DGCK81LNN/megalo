@@ -155,21 +155,21 @@ async function generate() {
         if (fromUnit < 0) return
         channels.forEach((channel, ci) => {
           /** start time of source unit in samples */
-          let toUnitPos = toPos + unitLen * fromUnit
+          let fromUnitPos = fromPos + unitLen * fromUnit
           /** start time of destination unit in samples */
-          let fromUnitPos = fromPos + unitLen * toUnit
+          let toUnitPos = toPos + unitLen * toUnit
           // copying our unit
           let subarr = channel.subarray(
-            0 | toUnitPos,
-            0 | (toUnitPos + unitLen)
+            0 | fromUnitPos,
+            0 | (fromUnitPos + unitLen)
           )
-          newAub.copyToChannel(subarr, ci, fromUnitPos)
+          newAub.copyToChannel(subarr, ci, toUnitPos)
         })
       })
-      let prog = fromPos / newAub.length
+      let prog = toPos / newAub.length
       status(prog, `变换... ${0 | (prog * 100)}%`)
-      fromPos += unitLen * sequence.length
-      toPos += unitLen * unitsPerMeasure
+      fromPos += unitLen * unitsPerMeasure
+      toPos += unitLen * sequence.length
 
       var _t = Date.now()
       if (_t - t > 40) {
