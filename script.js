@@ -19,7 +19,7 @@ const tracks = [
   { id: "dbgl", name: "Death by Glamour", bpm: 148, start: 0 },
   { id: "stmp", name: "Song That Might Play When You Fight Sans", bpm: 120, start: 2 },
   { id: "finl", name: "Finale", bpm: 95, start: 0 },
-  { id: "amlg", name: "Amalgram", bpm: 90.9, start: 0 },
+  { id: "amlg", name: "Amalgram", bpm: 89.995, start: 0 },
   { id: "bath", name: "Battle Against a True Hero", bpm: 150, start: 0 },
   { id: "lanc", name: "Lancer", bpm: 165, start: 0 },
   { id: "rudb", name: "Rude Buster", bpm: 140, start: 0 },
