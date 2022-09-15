@@ -83,8 +83,25 @@ var start = 0
 /** @type {AudioBuffer} */
 var aub = null
 
-trackselect.onchange = () => {
+function updateHeading() {
   tracknameEl.textContent = tracks[trackselect.value].name
+}
+trackselect.onchange = () => {
+  updateHeading()
+}
+
+idbox.oninput = function () {
+  if (idbox.value[4] === "_") {
+    const trackid = idbox.value.slice(0, 4).toLowerCase()
+    const ti = tracks.findIndex(track => track.id === trackid)
+    if (ti === -1) {
+      alert("No such track")
+    } else {
+      trackselect.selectedIndex = ti
+      updateHeading()
+    }
+    idbox.value = idbox.value.slice(5)
+  }
 }
 
 async function generate() {
