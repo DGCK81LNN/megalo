@@ -168,7 +168,7 @@ async function generate() {
       newAub.copyToChannel(channel.subarray(0, fromPos), ci, 0)
     })
 
-    while (toPos < len) {
+    while (fromPos < len) {
       sequence.forEach((fromUnit, toUnit) => {
         if (fromUnit < 0) return
         channels.forEach((channel, ci) => {
